@@ -1,71 +1,74 @@
-from django.shortcuts import render
-from . import models
-from .forms import TweetForm
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import render, get_object_or_404, redirect
 from .models import Tweet
+from .forms import TweetForm, UserRegistrationForm
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login, logout
+
 # Create your views here.
-# Performing crud operations in this file
+# Performing CRUD operations in this file
 
 def index(request):
     return render(request, 'index.html')
 
-# //listing of tweets (Display)
-
+# Listing of tweets (Display)
 def tweet_list(request):
     tweets = Tweet.objects.all().order_by('-created_at')
-    return render (request, 'tweet_list.html', {'tweets':tweets})
-
+    return render(request, 'tweet_list.html', {'tweets': tweets})
 
 # Function to create a new tweet
-@login_required #this is a decorator. This says that  login is mandatory
+@login_required  # This is a decorator. This says that login is mandatory
 def tweet_create(request):
-    # Checking if method is post
     if request.method == "POST":
-        # Then request data from the form that we created in forms.py, also follow the same for files
         form = TweetForm(request.POST, request.FILES)
-        # inbuilt method to check if form is valid
         if form.is_valid():
-            # Cif valid then save the form.
             tweet = form.save(commit=False)
-            # Append the user
             tweet.user = request.user
-            # Save the tweet
             tweet.save()
-            # redirect the user
-            return redirect('tweet_list')   
+            return redirect('tweet_list')
     else:
         form = TweetForm()
     return render(request, 'tweet_form.html', {'form': form})
 
-
-# //editing the tweet 
+# Editing the tweet
 @login_required
 def tweet_edit(request, tweet_id):
-    # giving edit access to only the user who requested it.
-    tweet = get_object_or_404(Tweet, pk=tweet_id, user = request.user)
+    tweet = get_object_or_404(Tweet, pk=tweet_id, user=request.user)
     if request.method == "POST":
-      form = TweetForm(request.POST, request.FILES, instance=tweet)
-      if form.is_valid():
-          tweet = form.save(commit=False)
-          tweet.user = request.user
-          tweet.save()
-          return redirect('tweet_list')
+        form = TweetForm(request.POST, request.FILES, instance=tweet)
+        if form.is_valid():
+            tweet = form.save(commit=False)
+            tweet.user = request.user
+            tweet.save()
+            return redirect('tweet_list')
     else:
         form = TweetForm(instance=tweet)
-        return render(request, 'tweet_form.html', {'form': form})
-    
-    # deleting the tweet
+    return render(request, 'tweet_form.html', {'form': form})
 
+# Deleting the tweet
 @login_required
 def tweet_delete(request, tweet_id):
-        tweet = get_object_or_404(Tweet, pk= tweet_id, user = request.user )
-        if(request.method == "POST"):
-            tweet.delete()
-            return redirect('tweet_list')
-        return render (request, 'tweet_confirm_delete.html', {'twet': tweet})
-        
+    tweet = get_object_or_404(Tweet, pk=tweet_id, user=request.user)
+    if request.method == "POST":
+        tweet.delete()
+        return redirect('tweet_list')
+    return render(request, 'tweet_confirm_delete.html', {'tweet': tweet})
 
+# User registration
+def register(request):
+    if request.method == "POST":
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            user.set_password(form.cleaned_data['password1'])
+            user.save()
+            login(request, user)
+            return redirect('tweet_list')  # Redirect to the tweet list after registration
+    else:
+        form = UserRegistrationForm()
+    return render(request, 'register.html', {'form': form})
 
-
-
+# Logout view
+@login_required
+def logout_view(request):
+    logout(request)  # Log the user out
+    return redirect('tweet_list')  # Redirect to the tweet list or any page you want
